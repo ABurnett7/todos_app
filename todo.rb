@@ -35,7 +35,7 @@ helpers do
 
     incomplete_lists.each { |list| yield list, lists.index(list) }
     complete_lists.each { |list| yield list, lists.index(list) }
-  end
+  end 
 
   def sort_todos(todos, &block)
     complete_todos, incomplete_todos = todos.partition { |todo| todo_complete?(todo) }
@@ -145,6 +145,11 @@ post '/lists/:id/destroy' do
   end
 end
 
+def next_todo_id(todos)
+  max = todos.map { |todo| todo[:id]}.max || 0
+  max + 1 
+end
+
 # Adding a todo to a list
 post "/lists/:list_id/todos" do
   @list_id = params[:list_id].to_i
@@ -156,7 +161,8 @@ post "/lists/:list_id/todos" do
     session[:error] = error
     erb :list, layout: :layout
   else
-    @list[:todos] << {name: text, completed: false}
+    id = next_todo_id(@list[:todos])
+    @list[:todos] << { id: id, name: text, completed: false }
     session[:success] = "Todo added to list."
     redirect "/lists/#{@list_id}"
   end
@@ -169,7 +175,7 @@ post "/lists/:list_id/todos/:id/destroy" do
 
   todo_id = params[:id].to_i 
   list_name = @list[:name]
-  todo_name = @list[:todos][todo_id][:name]
+  @list[:todos].reject! { |todo| todo[:id] == todo_id }
   
   @list[:todos].delete_at(todo_id)
   if env["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest"
@@ -186,12 +192,14 @@ post "/lists/:list_id/todos/:id" do
   @list = load_list(@list_id)
   todo_id = params[:id].to_i
   list_name = @list[:name]
-  todo_name = @list[:todos][todo_id][:name]
+  
   is_completed = params[:completed] == "true"
 
-  @list[:todos][todo_id][:completed] = is_completed
+  todo = @list[:todos].find { |todo| todo[:id] == todo_id }
+  todo_name = todo[:name]
+  todo[:completed] = is_completed
+  
   session[:success] = "#{list_name}: #{todo_name} has been updated."
-
   redirect "/lists/#{@list_id}"
 end
 
